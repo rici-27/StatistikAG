@@ -3,6 +3,8 @@ library(DT)
 library(tidyverse)
 library(glmnet)
 
+print("test test")
+
 data = read.csv("Realestate.csv", sep = ";", row.names = 1)
 # row.names = 1 führt dazu, dass die erste spalte nicht eingelesen wird
 View(data) 
