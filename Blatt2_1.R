@@ -5,58 +5,27 @@ library(DT)
 library(tidyverse)
 library(glmnet)
 
-print("test test")
-
-data = read.csv("Realestate.csv", sep = ";", row.names = 1)
-# row.names = 1 führt dazu, dass die erste spalte nicht eingelesen wird
-datatable(data, filter = "top", rownames = FALSE,
-          options = list(pageLength = 8))
 
 ## Teil a) Ridge Regression Estimator
 
 rre <- function(X, y, lambda=1){
-  error <- function(w, X, y, lambda){
-    crossprod(y- X %*% w) + lambda * sqrt(sum(w^2))
+  error <- function(w){
+    return(crossprod(y- X %*% w) + lambda * sqrt(sum(w^2)))
   }
-  result = optim(par =rep(0,ncol(X)), fn = error, X=X, y=y, lambda=lambda, method = 'BFGS')
+  result <- optim(par =rep(0,ncol(X)), fn = error)
   result$par
 }
 
-Y <- c(1,2,3)
-X <- diag(3)
-lambda <- 1
-ergebnis <- rre(X,Y,lambda)
-rm(X, Y, lambda, ergebnis)
 
 # Def des LSE zum Vergleich
 ls<-function(X, y){
   lseq <- function(w, X, y) {
     crossprod(y - X%*%w)
   }
-  result=optim(rep(0, ncol(X)), lseq, X=X, y=y, method='BFGS')
+  result=optim(rep(0, ncol(X)), lseq, X=X, y=y)
   result$par
 }
 
-# (hier kommt ein test mit den retail daten)
-# Daten in Vektoren numerisch speichern
-# Kommata durch Punkte ersetzen
-names(data) <- c("x_1","x_2","x_3","x_4","x_5","x_6","y")
-x1 <- data$x_1
-x1<-as.numeric(sub(",", ".", x1, fixed = TRUE))
-x2<-data$x_2
-x2<-as.numeric(sub(",", ".", x2, fixed = TRUE))
-y <- data$y
-y <- as.numeric(sub(",", ".", y, fixed = TRUE))
-
-# Regression mit ridge und lse durchführen
-design<-cbind(x1,x2)
-rre(design,y)
-ls(design,y)
-
-rm(x1,x2,y, design, lasso)
-
-
-## Teil b) glmnet Packet
 
 library(glmnet)
 ?glmnet
@@ -79,7 +48,6 @@ for (i in (1:n)){
   }
 }
 rm(i, j)
-View(X)
 
 # beta als Spaltenvektor erstellen (nicht notwendig)
 beta = matrix(rep(0,p+1), ncol = 1)
@@ -88,7 +56,6 @@ beta[3] = 2
 print(X%*% beta)
 # y Daten mit Fehler erstellen
 y = X %*% beta + eps
-View(y)
 
 ## Part 2: cv.glmnet und erste Parameter Schätzungen
 # lambda bestimmen
@@ -139,18 +106,24 @@ true_function <- function(x){
   2* x**2
 }
 
-# erstmal baue ich mir eine allgemeine plot function
-
 
 ggplot() +
-  xlim(c(-1,1)) +
-  geom_function(fun = true_function,
-                colour = "red") +
-  geom_point(aes(x=x, y=y), color = "blue", size = 2) +
-  geom_function(fun = ls_function, color = "green") + 
-  geom_function(fun = lasso_function, color = "orange") + 
-  geom_function(fun = rre_function, color = "pink") +
-  ggtitle("Plot 1: Einfache Ausführung")
+  xlim(c(-1.1,1.1)) +
+  geom_function(aes(color = "Wahre Funktion"), fun = true_function) +
+  geom_point(aes(x=x, y=y, color = "Daten"), size = 2) +
+  geom_function(aes(color = "Least Squares"), fun = ls_function) + 
+  geom_function(aes(color = "Lasso"), fun = lasso_function) + 
+  geom_function(aes(color = "Ridge"), fun = rre_function) +
+  ggtitle("Plot 1: Einfache Ausführung") +
+  scale_color_manual(
+    values = c("Daten" = "blue",
+               "Wahre Funktion" = "red",
+               "Least Squares" = "green", 
+               "Lasso" = "orange", 
+               "Ridge" = "pink"),
+    name = "Legende"
+  ) + 
+  theme_minimal()
 
 
 ## Part 4: Monte Carlo
@@ -212,22 +185,33 @@ plot_reg <- function(x, y, beta_rre, beta_lasso, beta_ls, titel = "Standardtitel
     }
     return(value)
   }
-  ggplot() +
-    xlim(c(-1,1)) +
-    geom_function(fun = true_function,
-                  colour = "red") +
-    geom_point(aes(x=x, y=y), color = "blue", size = 2) +
-    geom_function(fun = ls_function, color = "green") + 
-    geom_function(fun = lasso_function, color = "orange") + 
-    geom_function(fun = rre_function, color = "pink") +
-    ggtitle(titel)
   
+  ggplot() +
+    xlim(c(-1.1,1.1)) +
+    geom_function(aes(color = "Wahre Funktion"), fun = true_function) +
+    geom_point(aes(x=x, y=y, color = "Daten"), size = 2) +
+    geom_function(aes(color = "Least Squares"), fun = ls_function) + 
+    geom_function(aes(color = "Lasso"), fun = lasso_function) + 
+    geom_function(aes(color = "Ridge"), fun = rre_function) +
+    ggtitle(titel) +
+    scale_color_manual(
+      values = c("Wahre Funktion" = "red",
+                 "Daten" = "blue",
+                 "Least Squares" = "green", 
+                 "Lasso" = "orange", 
+                 "Ridge" = "pink"),
+      name = "Legende"
+    ) + 
+    theme_minimal()
+
+
 }
 
 # mit mittelwerten Plotten
 plot_reg(x,y, beta_rre = beta_rre_mean, beta_lasso = beta_lasso_mean, beta_ls = beta_ls_mean, titel = "Mittelwerte")
 
 # Quantile bestimmen
+### andere Variante: Quantile der Funktionswerte und nicht der beta-Vektoren nehmen !
 
 rre_quantiles <- apply(beta_rre_df, 1, function(x) quantile(x, probs = c(0.25, 0.5, 0.75)))
 View(rre_quantiles[1,])
