@@ -7,19 +7,24 @@ print("test test")
 
 data = read.csv("Realestate.csv", sep = ";", row.names = 1)
 # row.names = 1 führt dazu, dass die erste spalte nicht eingelesen wird
-View(data) 
 datatable(data, filter = "top", rownames = FALSE,
           options = list(pageLength = 8))
 
 ## Teil a) Ridge Regression Estimator
 
-rre <- function(X, y, lambda = 1){
-  error <- function(w, X, y, lambda = 1){
-    crossprod(y- X %*% w) - lambda * norm(w, type = "2")
+rre <- function(X, y, lambda=1){
+  error <- function(w, X, y, lambda){
+    crossprod(y- X %*% w) + lambda * sqrt(sum(w^2))
   }
-  result = optim(rep(0,ncol(X)), error, X=X, y=y, lambda=lambda, method = 'BFGS')
+  result = optim(par =rep(0,ncol(X)), fn = error, X=X, y=y, lambda=lambda, method = 'BFGS')
   result$par
 }
+
+Y <- c(1,2,3)
+X <- diag(3)
+lambda <- 1
+ergebnis <- rre(X,Y,lambda)
+rm(X, Y, lambda, ergebnis)
 
 # Def des LSE zum Vergleich
 ls<-function(X, y){
@@ -46,25 +51,21 @@ design<-cbind(x1,x2)
 rre(design,y)
 ls(design,y)
 
+rm(x1,x2,y, design, lasso)
+
 
 ## Teil b) glmnet Packet
 
 library(glmnet)
 ?glmnet
 
-lasso <- glmnet(design, y, alpha = 1)
-print(lasso)
-lasso$beta
-coef(lasso, s = lasso$lambda[30])
-
 
 ## Teil c) OVerfitting Problem for Least Squares
 ## Part 1: Daten erzeugen
-rm(x1,x2,y, design, lasso)
 
-x <- runif(100, min=-1, max=1)
+set.seed(27); x <- runif(100, min=-1, max=1)
 ?runif
-eps <- rnorm(100, mean=0, sd=1)
+set.seed(27); eps <- rnorm(100, mean=0, sd=1)
 
 # Design Matrix erstellen
 n <- 100
@@ -76,28 +77,33 @@ for (i in (1:n)){
   }
 }
 rm(i, j)
+View(X)
 
 # beta als Spaltenvektor erstellen (nicht notwendig)
 beta = matrix(rep(0,p+1), ncol = 1)
 beta[3] = 2
 
+print(X%*% beta)
 # y Daten mit Fehler erstellen
 y = X %*% beta + eps
+View(y)
 
 ## Part 2: cv.glmnet und erste Parameter Schätzungen
 # lambda bestimmen
 
-lambda_cv <- cv.glmnet(X, y, alpha = 1)
+set.seed(27); lambda_cv <- cv.glmnet(X, y, alpha = 1)
 lambda = lambda_cv$lambda.min
 
 # jeweils beta zurückgeben lassen
 beta_rre <- rre(X, y, lambda = lambda)
 
-lasso_1 <- glmnet(X, y, lambda = lambda, intercept = FALSE)
-beta_lasso <- as.vector(coef(lasso_1, s = lambda)[-1])
-# (komisch dass ich hier trotzdem intercept parameter entfernen lassen muss)
+lasso_1 <- glmnet(X, y, lambda = lambda)
+beta_lasso <- as.vector(lasso_1$beta)
+# der stimmt mit daniel überein
 
-beta_ls = ls(X, y)
+beta_ls = ls(X,y)
+
+############## ridge und least squares stimmt nicht überein bin so verwirrt
 
 # funktionen zum plotten definieren
 ls_function <- function(x){
